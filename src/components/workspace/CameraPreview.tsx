@@ -1432,6 +1432,9 @@ Respond ONLY with raw JSON. No explanation, no backticks, no markdown code block
   useEffect(() => {
     if (videoRef.current && stream) {
       videoRef.current.srcObject = stream
+      videoRef.current.play().catch((err) => {
+        console.warn('Failed to auto-play webcam stream:', err)
+      })
     }
   }, [stream])
 
@@ -1639,7 +1642,7 @@ Respond ONLY with raw JSON. No explanation, no backticks, no markdown code block
           autoPlay
           playsInline
           muted
-          style={{ display: 'none' }}
+          style={{ position: 'absolute', width: '1px', height: '1px', opacity: 0, pointerEvents: 'none' }}
         />
 
         {activeClip && (
@@ -1649,7 +1652,7 @@ Respond ONLY with raw JSON. No explanation, no backticks, no markdown code block
             loop
             playsInline
             muted={muted}
-            style={{ display: 'none' }}
+            style={{ position: 'absolute', width: '1px', height: '1px', opacity: 0, pointerEvents: 'none' }}
           />
         )}
 
