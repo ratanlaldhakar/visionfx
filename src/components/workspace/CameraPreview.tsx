@@ -1471,11 +1471,11 @@ Respond ONLY with raw JSON. No explanation, no backticks, no markdown code block
 
     switch (aspectRatio) {
       case '9-16':
-        return 'aspect-[9/16] h-[360px] max-w-[202px]'
+        return 'aspect-[9/16] h-[480px] max-w-[270px]'
       case '1-1':
-        return 'aspect-square h-[320px] max-w-[320px]'
+        return 'aspect-square h-[420px] max-w-[420px]'
       default:
-        return 'aspect-video w-[640px] max-h-[360px]'
+        return 'aspect-video w-full max-w-[840px] max-h-[472px]'
     }
   }
 
