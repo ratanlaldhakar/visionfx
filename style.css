@@ -1,0 +1,492 @@
+/* ============================================
+   FLOWER BLOOM - Hand Gesture Controller
+   ============================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap');
+
+/* ============================================
+   DESIGN SYSTEM — premium glassmorphism palette
+   ============================================ */
+:root {
+    --bg: #05070B;
+    --glass: rgba(255, 255, 255, 0.08);
+    --glass-strong: rgba(255, 255, 255, 0.12);
+    --border: rgba(255, 255, 255, 0.15);
+    --text: #ffffff;
+    --text-dim: rgba(255, 255, 255, 0.62);
+    --accent: #6EE7FF;
+    --accent-soft: rgba(110, 231, 255, 0.16);
+    --radius: 28px;
+    --shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
+}
+
+*,
+*::before,
+*::after {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+html, body {
+    width: 100%;
+    min-height: 100%;
+    overflow-x: hidden;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Inter', -apple-system, sans-serif;
+    -webkit-font-smoothing: antialiased;
+}
+
+/* ============================================
+   FIXED LIVE BACKGROUND (webcam + flower canvas)
+   ============================================ */
+.bg-layer {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;   /* never blocks scroll or clicks */
+}
+
+/* ---- Webcam Video ---- */
+#webcam {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    /* slight scale hides the filtered edge; scaleX(-1) keeps the mirror */
+    transform: scaleX(-1) scale(1.04);
+    z-index: 1;
+    /* Cheap GPU color grade (no blur) → cinematic, not "webcam" */
+    filter: saturate(1.14) contrast(1.06) brightness(0.88);
+}
+
+/* ---- Canvas Overlay ---- */
+#canvas {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    transform: scaleX(-1);
+    z-index: 2;
+    pointer-events: none;
+}
+
+/* Color grade + darkening so glass + text stay legible over any camera feed.
+   A faint accent spotlight (top layer) adds depth and lighting behind the card. */
+.bg-tint {
+    position: absolute;
+    inset: 0;
+    z-index: 4;
+    pointer-events: none;
+    background:
+        radial-gradient(55% 60% at 24% 42%, rgba(110, 231, 255, 0.10) 0%, rgba(110, 231, 255, 0) 70%),
+        linear-gradient(90deg, rgba(5, 7, 11, 0.78) 0%, rgba(5, 7, 11, 0.42) 45%, rgba(5, 7, 11, 0.18) 100%),
+        linear-gradient(0deg, rgba(5, 7, 11, 0.62) 0%, rgba(5, 7, 11, 0) 42%),
+        linear-gradient(180deg, rgba(5, 7, 11, 0.35) 0%, rgba(5, 7, 11, 0) 22%);
+}
+
+/* ---- Loading Screen ---- */
+.loading-overlay {
+    position: absolute;
+    inset: 0;
+    z-index: 100;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    /* Match the site palette (#05070B) with a faint warm center for the bloom */
+    background:
+        radial-gradient(ellipse at center, rgba(255, 120, 110, 0.06) 0%, rgba(255, 120, 110, 0) 42%),
+        radial-gradient(ellipse at center, #0a0e14 0%, #070a0f 58%, var(--bg) 100%);
+    transition: opacity 0.8s ease, visibility 0.8s ease;
+}
+
+.loading-overlay.hidden {
+    opacity: 0;
+    visibility: hidden;
+}
+
+.loading-flower {
+    width: 80px;
+    height: 80px;
+    position: relative;
+    margin-bottom: 30px;
+}
+
+.loading-flower::before {
+    content: '✿';
+    font-size: 60px;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    animation: bloom-pulse 2s ease-in-out infinite;
+    filter: drop-shadow(0 0 15px rgba(255, 120, 180, 0.8));
+}
+
+@keyframes bloom-pulse {
+    0%, 100% {
+        transform: translate(-50%, -50%) scale(0.8);
+        opacity: 0.6;
+        filter: drop-shadow(0 0 10px rgba(255, 120, 180, 0.5));
+    }
+    50% {
+        transform: translate(-50%, -50%) scale(1.2);
+        opacity: 1;
+        filter: drop-shadow(0 0 25px rgba(255, 120, 180, 1));
+    }
+}
+
+.loading-text {
+    color: rgba(255, 255, 255, 0.88);
+    font-size: 15px;
+    font-weight: 300;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    animation: text-fade 2s ease-in-out infinite;
+}
+
+.loading-subtext {
+    color: rgba(255, 255, 255, 0.45);
+    font-size: 12px;
+    font-weight: 300;
+    letter-spacing: 2px;
+    margin-top: 10px;
+}
+
+@keyframes text-fade {
+    0%, 100% { opacity: 0.5; }
+    50% { opacity: 1; }
+}
+
+/* ---- Instruction Toast (glass) ---- */
+.instructions {
+    position: absolute;
+    bottom: 40px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 10;
+    background: var(--glass);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 14px 26px;
+    color: var(--text-dim);
+    font-size: 13px;
+    font-weight: 300;
+    letter-spacing: 0.4px;
+    text-align: center;
+    line-height: 1.6;
+    max-width: 520px;
+    transition: opacity 1s ease, transform 1s ease;
+    /* Lighter, proportional shadow — it's a small secondary element */
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
+}
+
+.instructions.hidden {
+    opacity: 0;
+    transform: translateX(-50%) translateY(20px);
+    pointer-events: none;
+}
+
+.instructions span {
+    color: var(--accent);
+    font-weight: 600;
+}
+
+/* ---- Vignette ---- */
+.vignette {
+    position: absolute;
+    inset: 0;
+    z-index: 3;
+    pointer-events: none;
+    /* Softer, off-center cinematic vignette (tighter falloff toward edges) */
+    background: radial-gradient(
+        ellipse 82% 74% at 50% 44%,
+        transparent 42%,
+        rgba(0, 0, 0, 0.30) 78%,
+        rgba(0, 0, 0, 0.58) 100%
+    );
+}
+
+/* ============================================
+   CONTENT LAYER (floats above the background)
+   ============================================ */
+.content {
+    position: relative;
+    z-index: 5;
+}
+
+/* ---- Landing section ---- */
+.landing {
+    position: relative;
+    min-height: 100vh;
+    min-height: 100svh;           /* mobile-safe viewport height */
+    display: flex;
+    align-items: center;
+    padding: clamp(24px, 6vw, 96px);
+}
+
+/* ---- Glass card (shared surface) ---- */
+.glass-card {
+    position: relative;
+    overflow: hidden;                 /* clip the moving sheen to rounded corners */
+    /* Directional fill: brighter at top-left (light source) → depth */
+    background:
+        linear-gradient(135deg, rgba(255, 255, 255, 0.14) 0%, rgba(255, 255, 255, 0.05) 46%, rgba(255, 255, 255, 0.03) 100%);
+    backdrop-filter: blur(18px) saturate(150%);
+    -webkit-backdrop-filter: blur(18px) saturate(150%);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    /* Layered lighting: ambient drop + contact shadow + top edge highlight
+       + faint bottom edge — simulates real glass catching light. */
+    box-shadow:
+        0 24px 60px rgba(0, 0, 0, 0.45),
+        0 4px 14px rgba(0, 0, 0, 0.30),
+        inset 0 1px 0 rgba(255, 255, 255, 0.40),
+        inset 0 0 0 1px rgba(255, 255, 255, 0.04),
+        inset 0 -18px 40px rgba(0, 0, 0, 0.18);
+    /* GPU compositing hint: this element is transformed each frame in JS */
+    will-change: transform;
+}
+
+/* Moving specular reflection — driven by JS transform (light follows hand) */
+.card-sheen {
+    position: absolute;
+    inset: -20%;                      /* oversized so it never reveals an edge */
+    z-index: 0;
+    pointer-events: none;
+    border-radius: inherit;
+    background:
+        radial-gradient(42% 38% at 32% 12%, rgba(255, 255, 255, 0.22) 0%, rgba(255, 255, 255, 0) 60%),
+        radial-gradient(60% 50% at 78% 108%, rgba(110, 231, 255, 0.10) 0%, rgba(110, 231, 255, 0) 60%);
+    will-change: transform;
+}
+
+.profile-card {
+    max-width: 460px;
+    padding: clamp(30px, 4vw, 46px);
+    /* Card fades in; children rise in a stagger (transforms stay independent
+       of the parent transform that JS drives). */
+    animation: fade-in 0.8s ease both;
+    animation-delay: 0.2s;
+}
+
+@keyframes fade-in {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+}
+
+/* Keep content above the sheen + give each child a staggered rise-in */
+.profile-card > *:not(.card-sheen) {
+    position: relative;
+    z-index: 1;
+    animation: rise-in 0.9s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.profile-card .eyebrow        { animation-delay: 0.38s; }
+.profile-card .profile-name   { animation-delay: 0.48s; }
+.profile-card .profile-role   { animation-delay: 0.58s; }
+.profile-card .profile-intro  { animation-delay: 0.68s; }
+.profile-card .profile-actions{ animation-delay: 0.80s; }
+
+@keyframes rise-in {
+    from { opacity: 0; transform: translateY(16px); }
+    to   { opacity: 1; transform: none; }
+}
+
+.eyebrow {
+    display: inline-block;
+    color: var(--accent);
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin-bottom: 14px;
+    opacity: 0.9;
+}
+
+.profile-name {
+    font-size: clamp(34px, 6vw, 56px);
+    font-weight: 700;
+    line-height: 1.04;
+    letter-spacing: -1.2px;
+    margin-bottom: 12px;
+    /* Soft top-lit gradient text for a premium, dimensional feel */
+    background: linear-gradient(180deg, #ffffff 0%, rgba(255, 255, 255, 0.72) 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    color: transparent;
+}
+
+.profile-role {
+    font-size: clamp(15px, 2.2vw, 18px);
+    font-weight: 400;
+    color: var(--text);
+    opacity: 0.85;
+    margin-bottom: 18px;
+}
+
+.profile-intro {
+    font-size: 15px;
+    font-weight: 300;
+    line-height: 1.7;
+    color: var(--text-dim);
+    margin-bottom: 28px;
+}
+
+/* ---- Actions ---- */
+.profile-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+}
+
+.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 13px 26px;
+    border-radius: 999px;
+    font-size: 14px;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+    text-decoration: none;
+    cursor: pointer;
+    border: 1px solid var(--border);
+    color: var(--text);
+    /* transform/opacity only transitions — GPU friendly */
+    transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1),
+                background-color 0.35s ease,
+                box-shadow 0.35s ease;
+}
+
+.btn-primary {
+    align-self: flex-start;
+    background: var(--accent-soft);
+    border-color: rgba(110, 231, 255, 0.4);
+    box-shadow: 0 8px 24px rgba(110, 231, 255, 0.12);
+}
+
+.btn-primary:hover {
+    transform: translateY(-2px);
+    background: rgba(110, 231, 255, 0.24);
+    box-shadow: 0 12px 30px rgba(110, 231, 255, 0.22);
+}
+
+.social-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.btn-icon {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 16px;
+    border-radius: 999px;
+    font-size: 13px;
+    font-weight: 500;
+    text-decoration: none;
+    color: var(--text-dim);
+    background: var(--glass);
+    border: 1px solid var(--border);
+    transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1),
+                color 0.3s ease,
+                border-color 0.3s ease,
+                background-color 0.3s ease;
+}
+
+.btn-icon svg { flex-shrink: 0; }
+
+.btn-icon:hover {
+    transform: translateY(-2px);
+    color: var(--text);
+    border-color: rgba(110, 231, 255, 0.45);
+    background: var(--glass-strong);
+}
+
+.btn-icon:hover svg { color: var(--accent); }
+
+/* Tactile press */
+.btn:active,
+.btn-icon:active {
+    transform: translateY(0) scale(0.97);
+    transition-duration: 0.08s;
+}
+
+/* Keyboard accessibility */
+.btn:focus-visible,
+.btn-icon:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 3px;
+}
+
+/* ============================================
+   RESPONSIVE
+   ============================================ */
+
+/* Large desktops — allow the card a touch more presence */
+@media (min-width: 1440px) {
+    .profile-card { max-width: 520px; }
+}
+
+/* Tablet / small laptop */
+@media (max-width: 1024px) {
+    .landing { padding: clamp(24px, 5vw, 64px); }
+    .profile-card { max-width: 440px; }
+}
+/* Phones */
+@media (max-width: 640px) {
+    .landing {
+        align-items: flex-end;
+        padding: 20px 18px 88px;
+    }
+    .profile-card {
+        max-width: 100%;
+        width: 100%;
+        padding: 26px 24px;
+    }
+    .instructions {
+        bottom: 18px;
+        font-size: 12px;
+        padding: 12px 18px;
+        max-width: calc(100% - 32px);
+    }
+    /* Lighter blur on mobile to protect FPS with a live camera underneath */
+    .glass-card {
+        backdrop-filter: blur(13px) saturate(135%);
+        -webkit-backdrop-filter: blur(13px) saturate(135%);
+    }
+    /* Camera spotlight recenters since the card now sits at the bottom */
+    .bg-tint {
+        background:
+            radial-gradient(70% 45% at 50% 82%, rgba(110, 231, 255, 0.10) 0%, rgba(110, 231, 255, 0) 70%),
+            linear-gradient(0deg, rgba(5, 7, 11, 0.82) 0%, rgba(5, 7, 11, 0.30) 45%, rgba(5, 7, 11, 0.12) 100%);
+    }
+}
+
+/* Landscape phones / very short viewports — keep the card from overflowing */
+@media (max-height: 560px) and (orientation: landscape) {
+    .landing {
+        align-items: center;
+        padding: 16px 24px;
+    }
+    .profile-card { padding: 20px 24px; }
+    .profile-intro { display: none; }   /* trim to essentials when height is scarce */
+    .instructions { display: none; }
+}
+
+/* Respect users who prefer reduced motion */
+@media (prefers-reduced-motion: reduce) {
+    .profile-card,
+    .profile-card > *:not(.card-sheen) { animation: none; }
+    .btn, .btn-icon { transition: none; }
+}
